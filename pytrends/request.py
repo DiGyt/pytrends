@@ -14,7 +14,6 @@ from urllib.parse import quote
 
 BASE_TRENDS_URL = 'https://trends.google.com/trends'
 
-
 class TrendReq(object):
     """
     Google Trends API
@@ -63,7 +62,7 @@ class TrendReq(object):
 
         self.headers = {'accept-language': self.hl}
         self.headers.update(self.requests_args.pop('headers', {}))
-        
+
     def GetGoogleCookie(self):
         """
         Gets google cookie (used for each and every proxy; once on init otherwise)
@@ -72,7 +71,7 @@ class TrendReq(object):
         while True:
             if "proxies" in self.requests_args:
                 try:
-                    return dict(filter(lambda i: i[0] == 'NID', requests.get(
+                    return dict(filter(lambda i: i[0] == 'NID', requests.post(
                         f'{BASE_TRENDS_URL}/?geo={self.hl[-2:]}',
                         timeout=self.timeout,
                         **self.requests_args
@@ -85,7 +84,7 @@ class TrendReq(object):
                 else:
                     proxy = ''
                 try:
-                    return dict(filter(lambda i: i[0] == 'NID', requests.get(
+                    return dict(filter(lambda i: i[0] == 'NID', requests.post(
                         f'{BASE_TRENDS_URL}/?geo={self.hl[-2:]}',
                         timeout=self.timeout,
                         proxies=proxy,
@@ -125,7 +124,7 @@ class TrendReq(object):
                           connect=self.retries,
                           backoff_factor=self.backoff_factor,
                           status_forcelist=TrendReq.ERROR_CODES,
-                          method_whitelist=frozenset(['GET', 'POST']))
+                          allowed_methods=frozenset(['GET', 'POST']))
             s.mount('https://', HTTPAdapter(max_retries=retry))
 
         s.headers.update(self.headers)
@@ -177,7 +176,7 @@ class TrendReq(object):
             for index, kw in enumerate(self.kw_list):
                 keyword_payload = {'keyword': kw, 'time': timeframe[index], 'geo': self.geo}
                 self.token_payload['req']['comparisonItem'].append(keyword_payload)
-        else: 
+        else:
             # build out json for each keyword with
             for kw in self.kw_list:
                 keyword_payload = {'keyword': kw, 'time': timeframe, 'geo': self.geo}
@@ -297,10 +296,11 @@ class TrendReq(object):
 
         # Split dictionary columns into seperate ones
         for i, column in enumerate(result_df.columns):
-            result_df["[" + str(i) + "] " + str(self.kw_list[i]) + " date"] = result_df[i].apply(pd.Series)["formattedTime"]
-            result_df["[" + str(i) + "] " + str(self.kw_list[i]) + " value"] = result_df[i].apply(pd.Series)["value"]   
+            result_df["[" + str(i) + "] " + str(self.kw_list[i]) + " date"] = result_df[i].apply(pd.Series)[
+                "formattedTime"]
+            result_df["[" + str(i) + "] " + str(self.kw_list[i]) + " value"] = result_df[i].apply(pd.Series)["value"]
             result_df = result_df.drop([i], axis=1)
-        
+
         # Adds a row with the averages at the top of the dataframe
         avg_row = {}
         for i, avg in enumerate(req_json['default']['averages']):
@@ -310,9 +310,8 @@ class TrendReq(object):
         result_df.loc[-1] = avg_row
         result_df.index = result_df.index + 1
         result_df = result_df.sort_index()
-        
-        return result_df
 
+        return result_df
 
     def interest_by_region(self, resolution='COUNTRY', inc_low_vol=False,
                            inc_geo_code=False):
@@ -369,7 +368,6 @@ class TrendReq(object):
 
     def related_topics(self):
         """Request data from Google's Related Topics section and return a dictionary of dataframes
-
         If no top and/or rising related topics are found, the value for the key "top" and/or "rising" will be None
         """
 
@@ -417,7 +415,6 @@ class TrendReq(object):
 
     def related_queries(self):
         """Request data from Google's Related Queries section and return a dictionary of dataframes
-
         If no top and/or rising related queries are found, the value for the key "top" and/or "rising" will be None
         """
 
@@ -492,13 +489,12 @@ class TrendReq(object):
         result_df = pd.DataFrame(trend['title'] for trend in req_json)
         return result_df.iloc[:, -1]
 
-    def realtime_trending_searches(self, pn='US', cat='all', count =300):
+    def realtime_trending_searches(self, pn='US', cat='all', count=300):
         """Request data from Google Realtime Search Trends section and returns a dataframe"""
         # Don't know what some of the params mean here, followed the nodejs library
         # https://github.com/pat310/google-trends-api/ 's implemenration
 
-
-        #sort: api accepts only 0 as the value, optional parameter
+        # sort: api accepts only 0 as the value, optional parameter
 
         # ri: number of trending stories IDs returned,
         # max value of ri supported is 300, based on emperical evidence
@@ -511,9 +507,10 @@ class TrendReq(object):
         # max value of ri supported is 200, based on emperical evidence
         rs_value = 200
         if count < rs_value:
-            rs_value = count-1
+            rs_value = count - 1
 
-        forms = {'ns': 15, 'geo': pn, 'tz': '300', 'hl': 'en-US', 'cat': cat, 'fi' : '0', 'fs' : '0', 'ri' : ri_value, 'rs' : rs_value, 'sort' : 0}
+        forms = {'ns': 15, 'geo': pn, 'tz': '300', 'hl': 'en-US', 'cat': cat, 'fi': '0', 'fs': '0', 'ri': ri_value,
+                 'rs': rs_value, 'sort': 0}
         req_json = self._get_data(
             url=TrendReq.REALTIME_TRENDING_SEARCHES_URL,
             method=TrendReq.GET_METHOD,
@@ -524,7 +521,7 @@ class TrendReq(object):
         # parse the returned json
         wanted_keys = ["entityNames", "title"]
 
-        final_json = [{ key: ts[key] for key in ts.keys() if key in wanted_keys} for ts in req_json ]
+        final_json = [{key: ts[key] for key in ts.keys() if key in wanted_keys} for ts in req_json]
 
         result_df = pd.DataFrame(final_json)
 
@@ -588,7 +585,7 @@ class TrendReq(object):
         raise NotImplementedError(
             """This method has been removed for incorrectness. It will be removed completely in v5.
 If you'd like similar functionality, please try implementing it yourself and consider submitting a pull request to add it to pytrends.
-          
+
 There is discussion at:
 https://github.com/GeneralMills/pytrends/pull/542"""
         )
